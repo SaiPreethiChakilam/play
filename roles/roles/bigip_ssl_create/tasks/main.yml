@@ -1,0 +1,79 @@
+---
+# tasks file for bigip_ssl_create 
+
+- name: Create a Base bigip ssl directory
+  file:
+    path: "{{ base_cert_dir }}"
+    state: directory
+  register: result
+
+- name: set a temp directory
+  tempfile:
+    state: directory
+    path: "{{ base_cert_dir }}"
+  register: tmpresult
+
+- name: set result as facts
+  set_fact:
+    cert_dir: "{{ tmpresult.path }}"
+
+- name: creating certs folder structure
+  file:
+    path: "{{ cert_dir }}/{{ item }}"
+    state: directory
+  loop:
+    - certs
+    - crl
+    - newcerts
+    - private
+
+- name: Ensure correct ownership of private dir
+  file:
+    path: "{{ cert_dir }}/private"
+    mode: 0700
+    state: directory
+
+- name: creating some  index.txt file
+  file:
+    path: "{{ cert_dir }}/index.txt"
+    state: touch
+
+- name: Create serial file
+  copy:
+    dest: "{{ cert_dir }}/serial"
+    content: 1000
+
+- name: Create root CA openssl.cnf file
+  template:
+    src: root-ca-openssl.cnf
+    dest: "{{ cert_dir }}/openssl.cnf"
+
+- name: Generate RSA keyfile
+  command: >
+    openssl genrsa -passout pass:default
+      -aes256
+      -out private/ca.key.pem 4096
+  args:
+    chdir: "{{ cert_dir }}"
+
+- name: Ensure ownership on keyfile
+  file:
+    path: "{{ cert_dir }}/private/ca.key.pem"
+    mode: 0400
+
+- name: Create cert  request file
+  command: >
+    openssl req -passin pass:default \
+      -subj "/C=US/ST=TX/O=DXC/OU=DXC Certificate Authority/CN=DXC Root CA" \
+      -config openssl.cnf \
+      -key private/ca.key.pem \
+      -new -x509 -days 7300 -sha256 -extensions v3_ca \
+      -out certs/ca.cert.pem
+  args:
+    chdir: "{{ cert_dir }}"
+
+- name:  now try to get cert out put file
+  command: >
+    openssl x509 -noout -text -in certs/ca.cert.pem
+  args:
+    chdir: "{{ cert_dir }}"

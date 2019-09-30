@@ -1,0 +1,66 @@
+---
+
+- name: Create a VIP, pool and pool members
+  hosts: all
+  connection: local
+  vars:
+    provider:
+      password: Hph2g0
+      server: 10.87.36.191
+      user: admin
+      validate_certs: no
+      server_port: 443
+    description: "testpool created by preethi via ansible"
+    poolname: "preethi web"
+    poolmember_port: 8080
+    poolmember_host1: 10.0.0.1
+    pool_name: "web"
+    monitor_paths: 
+    routing_method: "round-robin"
+  tasks:
+    - name: Create a f5 bigip  pool
+      bigip_pool:
+        provider: "{{ provider }}"
+        lb_method: "{{  routing_method }}"
+        name: "{{ pool_name }}"
+        description: "Test pool Created by preethi"
+        slow_ramp_time: 120
+        partition: Common
+        monitors:
+          - http
+      #delegate_to: localhost
+    - name: Creation Pool members
+      bigip_pool_member:
+        description: "{{ description }}"
+        host:  "{{ poolmember_host1 }}"
+        port: "{{ poolmember_port }}"
+        provider: "{{ provider }}"
+        pool: "{{ pool_name }}"
+
+
+    - name: creating virtual servers on F5
+      bigip_virtual_server:
+        provider: "{{ provider }}"
+        description: "{{ description }}"
+        destination: 10.0.0.2
+        name: virtualserver1
+        pool: "{{ pool_name }}"
+        port: "{{ poolmember_port}}"
+        snat:  automap
+        profiles: 
+          - http
+    - name: Import a certificate
+      bigip_ssl_certificate:
+        content: "{{ lookup('file', 'ca.cert') }}"
+        name: cacert
+        state: present
+        provider: "{{ provider }} "
+      register: result
+    - name: Import a key
+      bigip_ssl_key:
+        content: "{{ lookup('file', 'ca.key') }}"
+        name: cakeycert
+        state: present
+        provider: "{{ provider }}"
+      register: result
+

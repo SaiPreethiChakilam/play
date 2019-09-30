@@ -1,0 +1,7 @@
+---
+
+- name: Create openssl execution
+  hosts: all
+  connection: local
+  roles:
+    - bigip_ssl_create

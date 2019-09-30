@@ -1,0 +1,5 @@
+---
+# defaults file for bigip_ssl_create
+
+base_cert_dir : /tmp/ansible/bigip/ca
+
